@@ -401,7 +401,18 @@ Requirements:
       systemPrompt,
       temperature: 0.2,
       maxTokens: 6000
-    };
+    });
+  }
+
+  async generateContentForType(prompt: string, contentType: string = 'blog'): Promise<AIResponse> {
+    const systemPrompt = `You are a professional content creator specializing in ${contentType} content. Create engaging, high-quality content that:
+
+- Is well-structured and easy to read
+- Includes relevant keywords naturally
+- Has a compelling hook and strong conclusion
+- Matches the target audience and platform
+- Is optimized for engagement and sharing
+- Follows best practices for ${contentType} content`;
 
     return this.generateContent(request);
   }

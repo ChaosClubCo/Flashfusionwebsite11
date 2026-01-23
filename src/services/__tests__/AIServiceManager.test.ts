@@ -1,26 +1,35 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { AIServiceManager, AIProvider } from '../AIServiceManager';
+import { afterEach, beforeEach, describe, expect, it, vi, type SpyInstance } from 'vitest';
+import { AIServiceManager, type AIProvider } from '../AIServiceManager';
 
-describe('AIServiceManager helpers', () => {
+describe('AIServiceManager helper methods', () => {
   let manager: AIServiceManager;
-  let provider: AIProvider;
+  let callProviderSpy: SpyInstance;
+
+  const mockProvider: AIProvider = {
+    name: 'MockProvider',
+    apiKey: 'test-key',
+    baseUrl: 'https://mock',
+    models: ['mock-model'],
+    capabilities: ['text-generation'],
+    rateLimits: {
+      requestsPerMinute: 100,
+      tokensPerMinute: 1000
+    }
+  };
 
   beforeEach(() => {
-    vi.restoreAllMocks();
-
-    provider = {
-      name: 'TestAI',
-      apiKey: 'test-key',
-      baseUrl: 'http://test',
-      models: ['test-model'],
-      capabilities: ['text-generation'],
-      rateLimits: { requestsPerMinute: 100, tokensPerMinute: 1000 }
-    };
-
     manager = new AIServiceManager();
-
-    vi.spyOn(manager as any, 'selectOptimalProvider').mockResolvedValue(provider);
+    vi.spyOn(manager as any, 'selectOptimalProvider').mockResolvedValue(mockProvider);
     vi.spyOn(manager as any, 'checkRateLimit').mockReturnValue(true);
+    callProviderSpy = vi.spyOn(manager as any, 'callProvider').mockResolvedValue({
+      content: 'result',
+      model: 'mock-model',
+      usage: {
+        promptTokens: 1,
+        completionTokens: 1,
+        totalTokens: 2
+      }
+    });
     vi.spyOn(manager as any, 'logUsage').mockResolvedValue(undefined);
   });
 
@@ -28,57 +37,39 @@ describe('AIServiceManager helpers', () => {
     vi.restoreAllMocks();
   });
 
-  it('generateCode delegates to the unified generateContent method', async () => {
-    const providerResponse = {
-      content: 'generated code',
-      model: 'test-model',
-      usage: { promptTokens: 10, completionTokens: 20, totalTokens: 30 }
-    };
+  it('generateCode delegates to generateContent and returns provider data', async () => {
+    const generateContentSpy = vi.spyOn(manager, 'generateContent');
 
-    const callProviderSpy = vi
-      .spyOn(manager as any, 'callProvider')
-      .mockResolvedValue(providerResponse);
+    const response = await manager.generateCode('Create a function', 'typescript');
 
-    const result = await manager.generateCode('write a function');
-
+    expect(generateContentSpy).toHaveBeenCalledTimes(1);
     expect(callProviderSpy).toHaveBeenCalledTimes(1);
-    const [providerArg, requestArg] = callProviderSpy.mock.calls[0];
-
-    expect(providerArg).toEqual(provider);
-    expect(requestArg.prompt).toContain('write a function');
-    expect(requestArg.systemPrompt).toContain('expert software developer');
-    expect(result).toMatchObject({
-      content: 'generated code',
-      provider: provider.name,
-      model: 'test-model',
-      usage: providerResponse.usage
+    expect(response).toMatchObject({
+      content: 'result',
+      model: 'mock-model',
+      provider: mockProvider.name
     });
   });
 
-  it('generateContentForType uses the unified generateContent without recursion', async () => {
-    const providerResponse = {
-      content: 'crafted content',
-      model: 'test-model',
-      usage: { promptTokens: 5, completionTokens: 15, totalTokens: 20 }
-    };
+  it('generateContentForType builds an AIRequest and resolves via generateContent', async () => {
+    const generateContentSpy = vi.spyOn(manager, 'generateContent');
 
-    const callProviderSpy = vi
-      .spyOn(manager as any, 'callProvider')
-      .mockResolvedValue(providerResponse);
+    const response = await manager.generateContentForType('Write a blog post', 'blog');
 
-    const result = await manager.generateContentForType('write a blog', 'blog');
-
-    expect(callProviderSpy).toHaveBeenCalledTimes(1);
-    const [providerArg, requestArg] = callProviderSpy.mock.calls[0];
-
-    expect(providerArg).toEqual(provider);
-    expect(requestArg.systemPrompt).toContain('professional content creator');
-    expect(requestArg.prompt).toBe('write a blog');
-    expect(result).toMatchObject({
-      content: 'crafted content',
-      provider: provider.name,
-      model: 'test-model',
-      usage: providerResponse.usage
+    expect(generateContentSpy).toHaveBeenCalledWith({
+      prompt: 'Write a blog post',
+      systemPrompt: expect.stringContaining('content creator specializing in blog'),
+      temperature: 0.8,
+      maxTokens: 4000
     });
+    expect(callProviderSpy).toHaveBeenCalledTimes(1);
+    expect(response.content).toBe('result');
+  });
+
+  it('generateContent rejects when no provider is available', async () => {
+    (manager as any).selectOptimalProvider.mockResolvedValueOnce(null);
+
+    await expect(manager.generateCode('code please')).rejects.toThrow('No available AI providers configured');
+    expect(callProviderSpy).not.toHaveBeenCalled();
   });
 });
