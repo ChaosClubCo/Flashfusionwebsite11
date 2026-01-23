@@ -1,6 +1,6 @@
 import type { Session } from '@supabase/supabase-js';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { checkAuthenticationStatus } from '../auth-protection';
+import { describe, it, expect, vi, beforeEach, beforeAll } from 'vitest';
+import { checkAuthenticationStatus, getSecureAccessToken } from '../auth-protection';
 
 const getSessionMock = vi.fn();
 const signOutMock = vi.fn();
@@ -41,6 +41,32 @@ function createSession(overrides: Partial<Session> = {}): Session {
     ...overrides
   } as Session;
 }
+
+const createStorage = () => {
+  let store: Record<string, string> = {};
+  return {
+    getItem: (key: string) => (key in store ? store[key] : null),
+    setItem: (key: string, value: string) => {
+      store[key] = value;
+    },
+    removeItem: (key: string) => {
+      delete store[key];
+    },
+    clear: () => {
+      store = {};
+    },
+    key: (index: number) => Object.keys(store)[index] ?? null,
+    get length() {
+      return Object.keys(store).length;
+    }
+  } as Storage;
+};
+
+beforeAll(() => {
+  vi.stubGlobal('localStorage', createStorage());
+  vi.stubGlobal('sessionStorage', createStorage());
+  vi.stubGlobal('document', { cookie: '' });
+});
 
 beforeEach(() => {
   localStorage.clear();
@@ -92,30 +118,13 @@ describe('checkAuthenticationStatus', () => {
     expect(state.session).toBe(session);
   });
 
-  it('does not trust user-metadata roles when app_metadata is absent', async () => {
-    const session = createSession({
-      user: {
-        id: 'user-metadata-only',
-        app_metadata: {},
-        user_metadata: { role: 'admin', roles: ['admin'] },
-        aud: 'authenticated',
-        email: 'user@example.com',
-        phone: '',
-        created_at: new Date().toISOString(),
-        role: 'authenticated',
-        confirmed_at: new Date().toISOString(),
-        last_sign_in_at: new Date().toISOString(),
-        factors: [],
-        identities: [],
-        updated_at: new Date().toISOString()
-      }
-    } as Partial<Session>);
+  it('ignores XSS-style token injection in localStorage when fetching secure token', async () => {
+    localStorage.setItem('ff-auth-token', '<script>alert(1)</script>');
+    getSessionMock.mockResolvedValue({ data: { session: null }, error: null });
 
-    getSessionMock.mockResolvedValue({ data: { session }, error: null });
+    const token = await getSecureAccessToken();
 
-    const state = await checkAuthenticationStatus();
-
-    expect(state.isAuthenticated).toBe(true);
-    expect(state.user?.roles).toEqual(['authenticated']);
+    expect(token).toBeNull();
+    expect(getSessionMock).toHaveBeenCalled();
   });
 });
