@@ -83,6 +83,7 @@ describe('checkAuthenticationStatus', () => {
 
     const state = await checkAuthenticationStatus();
 
+    expect(getSessionMock).toHaveBeenCalledTimes(1);
     expect(state.isAuthenticated).toBe(false);
     expect(state.user).toBeNull();
   });
