@@ -7,52 +7,64 @@
 
 import { expect, afterEach, vi } from 'vitest';
 import { cleanup } from '@testing-library/react';
-import matchers from '@testing-library/jest-dom/matchers';
+import * as matchers from '@testing-library/jest-dom/matchers';
 
 // Extend Vitest's expect with React Testing Library matchers
-expect.extend(matchers);
+if (matchers && Object.keys(matchers).length > 0) {
+  expect.extend(matchers);
+}
 
 // Cleanup after each test
-afterEach(() => {
-  cleanup();
-});
+if (typeof document !== 'undefined') {
+  afterEach(() => {
+    cleanup();
+  });
+}
 
 // Mock window.matchMedia
-Object.defineProperty(window, 'matchMedia', {
-  writable: true,
-  value: vi.fn().mockImplementation(query => ({
-    matches: false,
-    media: query,
-    onchange: null,
-    addListener: vi.fn(),
-    removeListener: vi.fn(),
-    addEventListener: vi.fn(),
-    removeEventListener: vi.fn(),
-    dispatchEvent: vi.fn(),
-  })),
-});
+if (typeof window !== 'undefined') {
+  Object.defineProperty(window, 'matchMedia', {
+    writable: true,
+    value: vi.fn().mockImplementation(query => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    })),
+  });
+}
 
 // Mock IntersectionObserver
-global.IntersectionObserver = class IntersectionObserver {
-  constructor() {}
-  disconnect() {}
-  observe() {}
-  takeRecords() {
-    return [];
-  }
-  unobserve() {}
-} as any;
+if (typeof global !== 'undefined') {
+  global.IntersectionObserver = class IntersectionObserver {
+    constructor() {}
+    disconnect() {}
+    observe() {}
+    takeRecords() {
+      return [];
+    }
+    unobserve() {}
+  } as any;
+}
 
 // Mock ResizeObserver
-global.ResizeObserver = class ResizeObserver {
-  constructor() {}
-  disconnect() {}
-  observe() {}
-  unobserve() {}
-} as any;
+if (typeof global !== 'undefined') {
+  global.ResizeObserver = class ResizeObserver {
+    constructor() {}
+    disconnect() {}
+    observe() {}
+    unobserve() {}
+  } as any;
+}
 
 // Mock scrollTo
-window.scrollTo = vi.fn();
+if (typeof window !== 'undefined') {
+  window.scrollTo = vi.fn();
+}
 
 // Mock Storage implementation with persistence for tests
 class MemoryStorage {
@@ -79,8 +91,10 @@ class MemoryStorage {
   });
 }
 
-global.localStorage = new MemoryStorage() as any;
-global.sessionStorage = new MemoryStorage() as any;
+if (typeof global !== 'undefined') {
+  global.localStorage = new MemoryStorage() as any;
+  global.sessionStorage = new MemoryStorage() as any;
+}
 
 // Console error/warning tracking
 const originalError = console.error;
