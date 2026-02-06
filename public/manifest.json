@@ -1,0 +1,19 @@
+{
+  "name": "FlashFusion - AI Development Platform",
+  "short_name": "FlashFusion",
+  "description": "Build, deploy, and manage web applications with 60+ AI tools, multi-agent orchestration, and real-time collaboration.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0F172A",
+  "theme_color": "#FF7B00",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ],
+  "categories": ["development", "productivity", "utilities"],
+  "lang": "en-US"
+}

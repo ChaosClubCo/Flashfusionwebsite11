@@ -1,0 +1,13 @@
+# FlashFusion Robots.txt
+# https://flashfusion.live
+
+User-agent: *
+Allow: /
+
+# Block internal/admin paths
+Disallow: /api/
+Disallow: /admin/
+Disallow: /_internal/
+
+# Sitemap
+Sitemap: https://flashfusion.live/sitemap.xml
